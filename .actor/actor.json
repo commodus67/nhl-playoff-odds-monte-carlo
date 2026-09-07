@@ -34,7 +34,7 @@
             "regressionGames": {
                 "title": "Regression to the mean, in games",
                 "type": "integer",
-                "description": "How strongly a partial season is pulled towards the team's baseline. Think of it as adding this many imaginary average games. Hockey is a high-variance sport over 82 games, so the default of 25 is deliberately larger than the NFL setting and smaller than baseball's. Lower it to trust the current record more, raise it to trust it less.",
+                "description": "How strongly a partial season is pulled towards the team's baseline. Think of it as adding this many imaginary average games. Hockey is a high-variance sport over a long season, so the default of 25 is deliberately larger than the NFL setting and smaller than baseball's. Lower it to trust the current record more, raise it to trust it less.",
                 "default": 25,
                 "prefill": 25,
                 "editor": "number"
