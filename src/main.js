@@ -2,7 +2,7 @@ import { Actor, log } from 'apify';
 import { fetchKalshiEvent, buildValueBets } from './marketOdds.js';
 import {
     PYTHAGOREAN_EXPONENT,
-    SEASON_GAMES,
+    MIN_SEASON_GAMES,
     round,
     normalizeName,
     defaultSeason,
@@ -265,7 +265,12 @@ if (!games.length) {
     log.warning('No remaining games found. The output reflects the standings as they stand.');
 }
 
-const gamesInProgress = new Map(teams.map((t) => [t.id, Math.max(SEASON_GAMES - t.gamesPlayed - t.gamesRemaining, 0)]));
+// Read the season length off the schedule rather than hardcoding it. The NHL went
+// from 82 games to 84 in 2026-27, and a hardcoded 82 would have quietly reported
+// two phantom games in progress for every club all season.
+const seasonLength = Math.max(MIN_SEASON_GAMES, ...teams.map((t) => t.gamesPlayed + t.gamesRemaining));
+log.info(`Season length read from the schedule: ${seasonLength} games per team.`);
+const gamesInProgress = new Map(teams.map((t) => [t.id, Math.max(seasonLength - t.gamesPlayed - t.gamesRemaining, 0)]));
 
 buildRatings(teams, { pythagoreanWeight: PYTHAG_WEIGHT, regressionGames: REGRESSION_GAMES });
 
@@ -434,6 +439,7 @@ const results = teams.map((t, i) => {
 
     return {
         season: SEASON,
+        seasonLength,
         conference: t.conference,
         division: t.division,
         team: t.team,

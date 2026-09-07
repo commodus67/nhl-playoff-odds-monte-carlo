@@ -21,7 +21,10 @@
  */
 
 const PYTHAGOREAN_EXPONENT = 2.0; // Cole–Morrison exponent for goals in hockey.
-const SEASON_GAMES = 82;
+// Season length is READ FROM THE SCHEDULE, never assumed: the 2025-26 season was
+// 82 games and the 2026-27 season is 84 under the CBA signed in 2025. This is only
+// the floor used when the schedule feed comes back short.
+const MIN_SEASON_GAMES = 82;
 const DIVISION_QUALIFIERS = 3; // top three of each division go straight through
 const WILD_CARDS_PER_CONFERENCE = 2;
 
@@ -213,7 +216,7 @@ function simulate(teams, games, iterations, opts) {
 
 export {
     PYTHAGOREAN_EXPONENT,
-    SEASON_GAMES,
+    MIN_SEASON_GAMES,
     DIVISION_QUALIFIERS,
     WILD_CARDS_PER_CONFERENCE,
     logistic,
