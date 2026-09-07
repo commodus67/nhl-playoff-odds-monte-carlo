@@ -22,7 +22,7 @@ Three things about the NHL break a generic model:
 
 **Standings run on points, not wins.** A win is two points. Losing in overtime
 or a shootout is still worth one. Roughly 23% of games go past regulation, so a
-season hands out about 2,600 points across 1,312 games rather than a tidy
+season hands out about 3,100 points across 1,344 games rather than a tidy
 two-per-game. A simulator that ranks teams by wins misprices every club that
 lives in one-goal games. This one awards points the way the league does.
 
@@ -36,6 +36,11 @@ applies the real rule on every one of its twenty thousand seasons.
 **Overtime is close to a coin flip.** Three-on-three and the shootout are not
 sixty minutes of hockey. A stronger team carries much less of its edge into the
 extra period, so the strength gap is damped there rather than applied in full.
+
+**The season is not 82 games any more.** The CBA signed in 2025 moved the league
+to 84 games from 2026-27. This Actor never hardcodes a season length: it counts
+the games actually on the schedule feed, so it was already right on the first
+day of the new format and will stay right through the next change.
 
 ## What comes back
 
