@@ -1,0 +1,291 @@
+{
+    "actorSpecification": 1,
+    "name": "nhl-playoff-odds-monte-carlo",
+    "title": "NHL Playoff Odds API — Monte Carlo Simulator & Value Bets",
+    "description": "Replays every remaining NHL game thousands of times for playoff, division, wild card and Presidents' Trophy probabilities for all 32 teams, priced against live Kalshi contracts.",
+    "version": "0.0",
+    "buildTag": "latest",
+    "dockerfile": "../Dockerfile",
+    "input": {
+        "title": "NHL Playoff Odds Monte Carlo Simulator",
+        "type": "object",
+        "schemaVersion": 1,
+        "properties": {
+            "iterations": {
+                "title": "Monte Carlo iterations",
+                "type": "integer",
+                "description": "How many full seasons to simulate. More iterations give smoother probabilities and cost a little more time. 20000 is plenty for stable numbers; the run takes a few seconds either way.",
+                "default": 20000,
+                "prefill": 20000,
+                "editor": "number"
+            },
+            "season": {
+                "title": "Season year (optional)",
+                "type": "integer",
+                "description": "An NHL season is named by the year it ends, so the 2026-27 season is 2027. Leave empty to use the current season. Set a year to project a past season from where it stood, which is useful for backtesting.",
+                "editor": "number"
+            },
+            "archiveToNamedDataset": {
+                "title": "Archive to a named dataset (optional)",
+                "type": "string",
+                "description": "Leave empty for a normal run. If you put a name here, every run also appends its results to a named dataset in your account, which Apify keeps indefinitely instead of deleting after a few days. Run it on a schedule and you build your own history of how the probabilities moved across the season, which is something you cannot reconstruct later. Use the same name every time, for example nhl-playoff-odds-history.",
+                "editor": "textfield"
+            },
+            "regressionGames": {
+                "title": "Regression to the mean, in games",
+                "type": "integer",
+                "description": "How strongly a partial season is pulled towards the team's baseline. Think of it as adding this many imaginary average games. Hockey is a high-variance sport over 82 games, so the default of 25 is deliberately larger than the NFL setting and smaller than baseball's. Lower it to trust the current record more, raise it to trust it less.",
+                "default": 25,
+                "prefill": 25,
+                "editor": "number"
+            },
+            "pythagoreanWeight": {
+                "title": "Weight on goal differential",
+                "type": "number",
+                "description": "How much of the strength estimate comes from goals scored and allowed rather than the raw record. Goal differential predicts future results better than the record itself, which in hockey is badly distorted by shootouts and the loser point, so the default leans on it.",
+                "default": 0.6,
+                "prefill": 0.6,
+                "editor": "number"
+            },
+            "homeIceAdvantage": {
+                "title": "Home ice advantage (log-odds)",
+                "type": "number",
+                "description": "Added to the home team's strength in every simulated game. The default of 0.12 corresponds to roughly a 53 percent win rate for the home side between evenly matched teams, in line with recent NHL seasons. Home ice is worth noticeably less in hockey than in basketball or football. Set to 0 to ignore venue.",
+                "default": 0.12,
+                "prefill": 0.12,
+                "editor": "number"
+            },
+            "strengthUncertainty": {
+                "title": "Strength uncertainty",
+                "type": "number",
+                "description": "How unsure the model is about each team's true talent. Every simulated season draws a slightly different version of each team. Setting it to zero makes the output far too confident.",
+                "default": 0.1,
+                "prefill": 0.1,
+                "editor": "number"
+            },
+            "overtimeProbability": {
+                "title": "Probability a game goes past regulation",
+                "type": "number",
+                "description": "Chance that any single simulated game is still tied after sixty minutes and goes to overtime or a shootout. Those games award three points instead of two: two to the winner and one to the loser. Around 23 percent of NHL games end this way, which is where the default comes from, and ignoring it would understate every team's points total by about nine.",
+                "default": 0.23,
+                "prefill": 0.23,
+                "editor": "number"
+            },
+            "overtimeDamping": {
+                "title": "How much talent matters in overtime",
+                "type": "number",
+                "description": "Three-on-three overtime and the shootout are far closer to a coin flip than sixty minutes of hockey are. This shrinks the strength gap in those games: 0 makes overtime a pure coin flip, 1 treats it exactly like regulation. The default of 0.5 halves the edge a stronger team carries into the extra period.",
+                "default": 0.5,
+                "prefill": 0.5,
+                "editor": "number"
+            },
+            "priorCarryover": {
+                "title": "How much of last season carries over",
+                "type": "number",
+                "description": "Before the season starts, every team's record is 0-0-0 and a model with no memory would return the same number for all 32 clubs. Last season's goal differential is shrunk towards average by this amount and used as the starting point. 0.6 keeps 60 percent of last season's separation. Set to 0 to start every team dead level.",
+                "default": 0.6,
+                "prefill": 0.6,
+                "editor": "number"
+            },
+            "minGamesPlayedForValue": {
+                "title": "Games needed before a VALUE call",
+                "type": "integer",
+                "description": "In September this model knows one thing: how each club finished last season. It does not know who was traded, who got hurt or who signed in July, and the market knows all of it. Until the league has played this many games per team, edges are still reported in full but no row is allowed to claim VALUE. Set to 0 to override that, deliberately.",
+                "default": 10,
+                "prefill": 10,
+                "editor": "number"
+            },
+            "includeDivisionMarkets": {
+                "title": "Also price the four division winner markets",
+                "type": "boolean",
+                "description": "Adds Kalshi's Atlantic, Metropolitan, Central and Pacific division winner races alongside the qualification market. These are mutually exclusive races, so the overround is stripped out before the comparison. They are usually much thinner than the qualification market, so they are reported as a probability and an edge and never sized.",
+                "default": true,
+                "editor": "checkbox"
+            },
+            "edgeThreshold": {
+                "title": "Minimum edge to flag value",
+                "type": "number",
+                "description": "A team is flagged when the model probability beats the de-vigged market probability by at least this much. 0.05 means five percentage points.",
+                "default": 0.05,
+                "prefill": 0.05,
+                "editor": "number"
+            },
+            "bankroll": {
+                "title": "Bankroll for position sizing",
+                "type": "integer",
+                "description": "Your total capital, in dollars. It only scales the suggestedStake column. The suggestedFractionOfBankroll column is independent of this number, so it stays meaningful whatever capital you run.",
+                "default": 1000,
+                "prefill": 1000,
+                "editor": "number"
+            },
+            "maxPerPositionPct": {
+                "title": "Max stake per position",
+                "type": "number",
+                "description": "Hard ceiling on any single position, as a fraction of bankroll. 0.02 means no position ever exceeds 2% of your capital. Quarter-Kelly sizing is clipped to this ceiling, and the kellyFractionUncapped column shows what the model wanted before the clip.",
+                "default": 0.02,
+                "prefill": 0.02,
+                "editor": "number"
+            },
+            "maxTotalExposurePct": {
+                "title": "Max total portfolio exposure",
+                "type": "number",
+                "description": "Ceiling on the sum of all open positions, as a fraction of bankroll. This divided by the per-position ceiling is how many positions actually fit: at the defaults, 6% over 2% means three. Qualifying rows beyond that keep their verdict but come back trimmed, with cappedByPortfolioLimit set to true.",
+                "default": 0.06,
+                "prefill": 0.06,
+                "editor": "number"
+            },
+            "marketProbabilities": {
+                "title": "Market probabilities (optional override)",
+                "type": "array",
+                "description": "Supply your own prices instead of reading Kalshi. Each entry needs a team name, a market of either playoff or division, and a probability between 0 and 1. Example: [{ \"team\": \"Colorado Avalanche\", \"market\": \"playoff\", \"impliedProbability\": 0.9 }]. When this is filled in, no Kalshi call is made, no de-vig is applied and no stake is sized.",
+                "default": [],
+                "prefill": [],
+                "editor": "json"
+            }
+        }
+    },
+    "output": {
+        "actorOutputSchemaVersion": 1,
+        "title": "NHL playoff odds output",
+        "description": "One row per NHL team with playoff, division, wild card and Presidents' Trophy probabilities, a projected points total, strength estimates, and the edge against live Kalshi contracts.",
+        "properties": {
+            "teamProjections": {
+                "type": "string",
+                "title": "Team projections",
+                "description": "All 32 team rows: qualification, division, wild card and Presidents' Trophy probabilities, projected points and record, and the market comparison.",
+                "template": "{{links.apiDefaultDatasetUrl}}/items"
+            }
+        }
+    },
+    "storages": {
+        "dataset": {
+            "actorSpecification": 1,
+            "views": {
+                "overview": {
+                    "title": "Playoff overview",
+                    "transformation": {
+                        "fields": [
+                            "division",
+                            "team",
+                            "projectedPoints",
+                            "fairDivisionProbability",
+                            "fairWildCardProbability",
+                            "fairPlayoffProbability",
+                            "fairPresidentsTrophyProbability"
+                        ]
+                    },
+                    "display": {
+                        "component": "table",
+                        "properties": {
+                            "division": { "label": "Division" },
+                            "team": { "label": "Team" },
+                            "projectedPoints": { "label": "Projected points" },
+                            "fairDivisionProbability": { "label": "Division %" },
+                            "fairWildCardProbability": { "label": "Wild card %" },
+                            "fairPlayoffProbability": { "label": "Playoff %" },
+                            "fairPresidentsTrophyProbability": { "label": "Presidents' Trophy %" }
+                        }
+                    }
+                },
+                "edge": {
+                    "title": "Market edge",
+                    "transformation": {
+                        "fields": [
+                            "team",
+                            "fairPlayoffProbability",
+                            "marketPlayoffProbability",
+                            "playoffEdge",
+                            "netEV",
+                            "recommendation",
+                            "kellyFractionUncapped",
+                            "suggestedFractionOfBankroll",
+                            "suggestedStake",
+                            "cappedByPortfolioLimit"
+                        ]
+                    },
+                    "display": {
+                        "component": "table",
+                        "properties": {
+                            "team": { "label": "Team" },
+                            "fairPlayoffProbability": { "label": "Model playoff %" },
+                            "marketPlayoffProbability": { "label": "Market playoff %" },
+                            "playoffEdge": { "label": "Edge" },
+                            "netEV": { "label": "EV after fees" },
+                            "recommendation": { "label": "Verdict" },
+                            "kellyFractionUncapped": { "label": "Kelly uncapped" },
+                            "suggestedFractionOfBankroll": { "label": "Stake % of bankroll" },
+                            "suggestedStake": { "label": "Suggested stake" },
+                            "cappedByPortfolioLimit": { "label": "Capped" }
+                        }
+                    }
+                },
+                "divisions": {
+                    "title": "Division winner markets",
+                    "transformation": {
+                        "fields": [
+                            "division",
+                            "team",
+                            "fairDivisionProbability",
+                            "marketDivisionProbability",
+                            "divisionEdge",
+                            "divisionRecommendation",
+                            "divisionMarketTicker"
+                        ]
+                    },
+                    "display": {
+                        "component": "table",
+                        "properties": {
+                            "division": { "label": "Division" },
+                            "team": { "label": "Team" },
+                            "fairDivisionProbability": { "label": "Model division %" },
+                            "marketDivisionProbability": { "label": "Market division %" },
+                            "divisionEdge": { "label": "Edge" },
+                            "divisionRecommendation": { "label": "Verdict" },
+                            "divisionMarketTicker": { "label": "Contract" }
+                        }
+                    }
+                },
+                "form": {
+                    "title": "Records and goal differential",
+                    "transformation": {
+                        "fields": [
+                            "team",
+                            "gamesPlayed",
+                            "wins",
+                            "losses",
+                            "otLosses",
+                            "points",
+                            "pointsPercentage",
+                            "gamesRemaining",
+                            "goalsFor",
+                            "goalsAgainst",
+                            "goalDifferential",
+                            "actualWinPct",
+                            "pythagoreanWinPct",
+                            "trueTalentWinPct"
+                        ]
+                    },
+                    "display": {
+                        "component": "table",
+                        "properties": {
+                            "team": { "label": "Team" },
+                            "gamesPlayed": { "label": "GP" },
+                            "wins": { "label": "W" },
+                            "losses": { "label": "L" },
+                            "otLosses": { "label": "OTL" },
+                            "points": { "label": "PTS" },
+                            "pointsPercentage": { "label": "P%" },
+                            "gamesRemaining": { "label": "Remaining" },
+                            "goalsFor": { "label": "GF" },
+                            "goalsAgainst": { "label": "GA" },
+                            "goalDifferential": { "label": "Diff" },
+                            "actualWinPct": { "label": "Win %" },
+                            "pythagoreanWinPct": { "label": "Pythagorean win %" },
+                            "trueTalentWinPct": { "label": "True talent win %" }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

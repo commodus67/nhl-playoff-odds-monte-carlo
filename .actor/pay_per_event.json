@@ -1,0 +1,7 @@
+{
+    "team-projection": {
+        "eventTitle": "Team projection",
+        "eventDescription": "One NHL team row: playoff, division, wild card and Presidents' Trophy probabilities, projected points, and the market comparison.",
+        "eventPriceUsd": 0.00005
+    }
+}
