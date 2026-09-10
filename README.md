@@ -141,6 +141,44 @@ If Kalshi is unreachable the run still completes: the model columns are filled
 and the market columns come back null with an explanatory note, rather than the
 run failing.
 
+## FAQ
+
+### How are NHL playoff odds calculated?
+
+The Actor replays every remaining regular-season game 20,000 times. Each game is decided by a strength estimate for both clubs — a Pythagorean win expectation on goals for and against (exponent 2.0), blended with the actual record and regressed toward a prior from last season — plus home ice. Overtime and shootouts are simulated separately, with the strength gap damped. After each simulated season the real NHL rules are applied, and a team's playoff probability is simply the share of those 20,000 seasons in which it qualified.
+
+### How many teams make the NHL playoffs, and how does the wild card work?
+
+Sixteen of 32. In each conference the top three teams in each of the two divisions qualify, and the two best remaining teams in the conference take the wild cards regardless of division. `fairWildCardProbability` is the chance of getting in *as a wild card*; `fairPlayoffProbability` is the chance of getting in at all.
+
+### Why does the NHL season have 84 games now?
+
+The collective bargaining agreement signed in 2025 expanded the regular season to 84 games starting in 2026-27. The Actor counts the games on ESPN's schedule feed instead of assuming a season length, so projected points are on the right scale.
+
+### What are Presidents' Trophy odds?
+
+The probability of finishing with the best regular-season record in the whole league. Across the 32 rows `fairPresidentsTrophyProbability` sums to 1, and `fairPlayoffProbability` sums to exactly 16.
+
+### Can I compare NHL playoff odds with Kalshi prices?
+
+Yes. Every run fetches the live `KXNHLPLAYOFF` contracts and, optionally, the four division-winner markets. Qualification is priced as sixteen independent yes/no contracts (the field sums to about 16, so it is not de-vigged), division races are treated as exclusive fields, and `netEV` is calculated after Kalshi's fee.
+
+### Why does every row say WATCH before the season starts?
+
+In September the model only knows how last season ended; it has not seen trades, signings, injuries or coaching changes. Until each team has played `minGamesPlayedForValue` games (10 by default) no row can be labelled VALUE. The disagreement with the market is still reported in full.
+
+### How can I track how NHL playoff odds change during the season?
+
+Set `archiveToNamedDataset` (for example `nhl-playoff-odds-history`) and schedule the Actor daily. Each run appends its 32 rows, with a timestamp and the market price of the day, to a named dataset that Apify keeps indefinitely.
+
+### Do I need an API key?
+
+Not for the data: ESPN and Kalshi are read through public endpoints. You only need an Apify account to run the Actor from the Console, the API, a schedule or an AI agent.
+
+### Is this betting advice?
+
+No. It is a statistical simulation and a market comparison for research and analysis.
+
 ## What this is not
 
 It is a statistical model and a market comparison, not advice. It does not place
