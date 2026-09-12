@@ -415,6 +415,10 @@ const retrievedAt = marketRetrievedAt ?? new Date().toISOString();
 const leagueGamesPlayed = teams.length
     ? teams.reduce((s, t) => s + t.gamesPlayed, 0) / teams.length
     : 0;
+if (leagueGamesPlayed === 0) preSeason = true;
+const seasonStageNote = leagueGamesPlayed === 0
+    ? 'the season has not started yet'
+    : `the season has barely started (${leagueGamesPlayed.toFixed(0)} games played on average)`;
 const valueGateOpen = leagueGamesPlayed >= MIN_GAMES_FOR_VALUE;
 if (!valueGateOpen) {
     log.warning(`The league averages ${leagueGamesPlayed.toFixed(1)} games played, below the ${MIN_GAMES_FOR_VALUE} needed for a VALUE call. Edges are reported but every row is downgraded to WATCH.`);
@@ -432,7 +436,7 @@ const results = teams.map((t, i) => {
     if (!valueGateOpen && recommendation === 'VALUE') {
         recommendation = 'WATCH';
         gated = true;
-        note = `Edge is real against the posted price, but the season has barely started (${leagueGamesPlayed.toFixed(0)} games played on average) and the model is still an extrapolation of last season. Tracked, not sized.`;
+        note = `Edge is real against the posted price, but ${seasonStageNote} and the model is still an extrapolation of last season. Tracked, not sized.`;
     }
     let divisionRecommendation = division?.recommendation ?? 'NO_MARKET';
     if (!valueGateOpen && divisionRecommendation === 'VALUE') divisionRecommendation = 'WATCH';
